@@ -227,11 +227,4 @@ func main() {
       check(err)
       fmt.Printf("Created: k8s/" + *environment + "/service.yaml\n")
     }
-
-    // if hostname is set, process ingress
-    // execute curl to create dns entry
-    // htf modify the ingress entry?
-    // unmarshal, check if exists, if not, add, and re-marshal?
-
-    // inject all this into kubernetes API instead of using files
 }
