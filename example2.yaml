@@ -1,0 +1,6 @@
+name: foo
+servicetarget: true
+containers:
+- name: ui
+  portnumber: 80
+  protocol: TCP
