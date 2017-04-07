@@ -30,6 +30,8 @@ containers:
 ```
 # name - MANDATORY: Unique application name
 name: foo
+# replicas - OPTIONAL: number of replicas, defaults to 2
+replicas: 3
 # servicetarget - OPTIONAL: container to create a service for
 # use the container name for a multi-container deployment
 # use 'true' for a single container deployment
@@ -53,9 +55,7 @@ containers:
 - name: ui
   portnumber: 80
   protocol: TCP
-  # probes - OPTIONAL: enable port probes readinessProbe/tcpSocket, livenessProbe/tcpSocket, livenessProbe/httpGet
+  # probes - OPTIONAL: enable port probe livenessProbe/httpGet
   probes:
-    - tcpready: true
-    - tcplive: true
     - httpcheck: true
   ```

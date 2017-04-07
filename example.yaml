@@ -7,6 +7,8 @@
 
 # name - MANDATORY: Unique application name
 name: foo
+# replicas - OPTIONAL: number of replicas, defaults to 2
+replicas: 3
 # servicetarget - OPTIONAL: container to create a service for
 servicetarget: ui
 # containers - MANDATORY: a list of containers to include in each deployment
@@ -28,8 +30,6 @@ containers:
 - name: ui
   portnumber: 80
   protocol: TCP
-  # probes - OPTIONAL: enable port probes readinessProbe/tcpSocket, livenessProbe/tcpSocket, livenessProbe/httpGet
+  # probes - OPTIONAL: enable probe livenessProbe/httpGet against path /
   probes:
-    - tcpready: true
-    - tcplive: true
     - httpcheck: true

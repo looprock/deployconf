@@ -16,6 +16,7 @@ type conf struct {
 	Name string `yaml:"name"`
 	Servicetarget string `yaml:"servicetarget,omitempty"`
 	Hostname string `yaml:"hostname,omitempty"`
+  Replicas string `yaml:"replicas,omitempty"`
 	Containers []struct {
 		Name string `yaml:"name"`
 		Image string `yaml:"image,omitempty"`
@@ -40,7 +41,11 @@ metadata:
     app: {{.Name}}
   name: {{.Name}}
 spec:
+{{ if .Replicas}}
+  replicas: {{.Replicas}}
+{{else}}
   replicas: 2
+{{end}}
   revisionHistoryLimit: 1
   selector:
     matchLabels:
@@ -75,9 +80,7 @@ spec:
 {{$portnumber := .Portnumber}}
 {{$protocol := .Protocol}}
         imagePullPolicy: Always
-{{if .Probes}}
-{{range .Probes}}
-{{if .Tcplive}}
+{{if $portnumber}}
         livenessProbe:
           failureThreshold: 3
           initialDelaySeconds: 30
@@ -87,7 +90,7 @@ spec:
             port: {{$portnumber}}
           timeoutSeconds: 10
 {{end}}
-{{if .Tcpready}}
+{{if $portnumber}}
         readinessProbe:
           failureThreshold: 3
           initialDelaySeconds: 30
@@ -97,6 +100,8 @@ spec:
             port: {{$portnumber}}
           timeoutSeconds: 10
 {{end}}
+{{if .Probes}}
+{{range .Probes}}
 {{if .Httpcheck}}
         livenessProbe:
           failureThreshold: 3
