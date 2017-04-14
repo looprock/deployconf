@@ -3,7 +3,7 @@
 # containers:
 # - name: ui
 #   portnumber: 80
-#   protocol: HTTP
+#   protocol: TCP
 
 # name - MANDATORY: Unique application name
 name: foo
@@ -15,12 +15,20 @@ servicetarget: ui
 containers:
 # name- MANDATORY: unique name of container type
 - name: api
+  # serviceport - OPTIONAL: define an alternate port for your service (vs container) to listen on. Default - portnumber
+  # serviceport: 80
   # image - OPTIONAL: will default to alpine if not present
-  # image: docker.ojointernal.com/consumer/app:api-latest
+  # beta should look something like this:
+  # image: docker.company.com/apps/app:api-canary
+  # production should look something like this:
+  # image: docker.company.com/apps/app:api-##IMAGE_VERSION##
+  # buildroot - OPTIONAL - if this isn't specified, it will set the build root to the container name
+  # i.e. if you're Dockerfile lives under the root of your git repo dir, you'd specify:
+  # buildroot: .
   # env - OPTIONAL: no defaults
   env:
     - name: AUTH_ROOT
-      value: https://beta-consumer.ojointernal.com
+      value: https://app.company.com
     - name: FOOBAR
       value: bass
   # portnumber - MANDATORY: port your service listens on
@@ -28,7 +36,7 @@ containers:
   # porttype - MANDATORY: protocol of connection (TCP, UDP)
   protocol: TCP
 - name: ui
-  portnumber: 80
+  portnumber: 5000
   protocol: TCP
   # probes - OPTIONAL: enable probe livenessProbe/httpGet against path /
   probes:

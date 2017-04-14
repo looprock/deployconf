@@ -20,11 +20,13 @@ type conf struct {
 	Containers []struct {
 		Name string `yaml:"name"`
 		Image string `yaml:"image,omitempty"`
+    Buildroot string `yaml:"buildroot,omitempty"`
 		Env []struct {
 			Name string `yaml:"name"`
 			Value string `yaml:"value"`
 		} `yaml:"env,omitempty"`
 		Portnumber int `yaml:"portnumber"`
+    Serviceport string `yaml:"serviceport,omitempty"`
 		Protocol string `yaml:"protocol"`
 		Probes []struct {
 			Tcpready bool `yaml:"tcpready,omitempty"`
@@ -33,6 +35,58 @@ type conf struct {
 		} `yaml:"probes,omitempty"`
 	} `yaml:"containers"`
 }
+
+var gitlabci = `stages:
+  - package
+  - deploy
+
+{{range .Containers}}
+container-{{.Name}}:
+  image: docker.company.com/build-images/docker:cli
+  stage: package
+  services:
+    - docker.company.com/build-images/docker:engine
+  only:
+    - tags
+    - master
+  variables:
+    IMAGE_TAG_BASE: {{.Name}}
+  before_script:
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY
+  script:
+    {{ if .Buildroot}}
+    - export DOCKER_BUILD_ROOT=${DOCKER_BUILD_ROOT:-"{{.Buildroot}}"}
+    {{else}}
+    - export DOCKER_BUILD_ROOT=${DOCKER_BUILD_ROOT:-"{{.Name}}"}
+    {{end}}
+    - if [ -n "${CI_BUILD_TAG}" ]; then export DOCKER_CACHE_TAG="latest"; export DOCKER_IMAGE_TAG=${CI_BUILD_TAG}; else export DOCKER_CACHE_TAG="canary"; export DOCKER_IMAGE_TAG="canary"; fi
+    - docker pull ${CI_REGISTRY_IMAGE}:${IMAGE_TAG_BASE}-${DOCKER_CACHE_TAG} || echo "Cannot find cache source image. Skipping cache."
+    - docker build --pull --cache-from ${CI_REGISTRY_IMAGE}:${IMAGE_TAG_BASE}-${DOCKER_CACHE_TAG} -t ${CI_REGISTRY_IMAGE}:${IMAGE_TAG_BASE}-${DOCKER_IMAGE_TAG} ${DOCKER_BUILD_ROOT}
+    - docker push ${CI_REGISTRY_IMAGE}:${IMAGE_TAG_BASE}-${DOCKER_IMAGE_TAG}
+    - if [ -n "${CI_BUILD_TAG}" ]; then docker tag ${CI_REGISTRY_IMAGE}:${IMAGE_TAG_BASE}-${DOCKER_IMAGE_TAG} ${CI_REGISTRY_IMAGE}:${IMAGE_TAG_BASE}-latest; docker push ${CI_REGISTRY_IMAGE}:${IMAGE_TAG_BASE}-latest; fi
+{{end}}
+
+beta-deploy:
+  image: docker.company.com/images/kubectl:latest
+  stage: deploy
+  environment: beta
+  only:
+    - master
+  script:
+    - awk 'FNR==1 && NR!=1 {print "---"}{print}' k8s/beta/* | sed -e "s/##CI_BUILD_NUMBER##/gitlab-build-${CI_PIPELINE_ID}/g" | sed -e "s/##IMAGE_VERSION##/${CI_BUILD_TAG}/g" | kubectl --context=beta --namespace=default apply -l app={{.Name}} -f -
+    - kubectl --context=beta --namespace=default rollout status --watch deployment/{{.Name}}
+
+production-deploy:
+  image: docker.company.com/images/kubectl:latest
+  stage: deploy
+  environment: production
+  only:
+    - /^v\d+\.\d+\.\d+$/
+  script:
+    - awk 'FNR==1 && NR!=1 {print "---"}{print}' k8s/production/* | sed -e "s/##CI_BUILD_NUMBER##/gitlab-build-${CI_PIPELINE_ID}/g" | sed -e "s/##IMAGE_VERSION##/${CI_BUILD_TAG}/g" | kubectl --context=production --namespace=default apply -l app={{.Name}} -f -
+    - kubectl --context=production --namespace=default rollout status --watch deployment/{{.Name}}
+`
+
 
 var deploy = `apiVersion: extensions/v1beta1
 kind: Deployment
@@ -57,6 +111,8 @@ spec:
     type: RollingUpdate
   template:
     metadata:
+      annotations:
+        ci.company.com/build-number: ##CI_BUILD_NUMBER##
       creationTimestamp: null
       labels:
         app: {{.Name}}
@@ -145,23 +201,27 @@ spec:
   ports:
 {{if eq "true" .Servicetarget}}
 {{range .Containers}}
-{{$portnumber := .Portnumber}}
-{{$protocol := .Protocol}}
   - name: {{.Name}}
-    port: {{$portnumber}}
-    protocol: {{$protocol}}
-    targetPort: {{$portnumber}}
+    {{if .Serviceport}}
+    port: {{.Serviceport}}
+    {{else}}
+    port: {{.Portnumber}}
+    {{end}}
+    protocol: {{.Protocol}}
+    targetPort: {{.Portnumber}}
 {{end}}
 {{else}}
 {{$servicetarget := .Servicetarget}}
 {{range .Containers}}
-{{$portnumber := .Portnumber}}
-{{$protocol := .Protocol}}
 {{if eq $servicetarget .Name}}
     - name: {{.Name}}
-      port: {{$portnumber}}
-      protocol: {{$protocol}}
-      targetPort: {{$portnumber}}
+      {{if .Serviceport}}
+      port: {{.Serviceport}}
+      {{else}}
+      port: {{.Portnumber}}
+      {{end}}
+      protocol: {{.Protocol}}
+      targetPort: {{.Portnumber}}
 {{end}}
 {{end}}
 {{end}}`
@@ -232,4 +292,16 @@ func main() {
       check(err)
       fmt.Printf("Created: k8s/" + *environment + "/service.yaml\n")
     }
+
+    // gitlab-ci config also depends on Servicetarget being set for now
+    var gdoc bytes.Buffer
+    gtmpl, err := template.New("gitlabci").Parse(gitlabci)
+    check(err)
+    gtmpl.Execute(&gdoc, c)
+    gd := gdoc.String()
+    // gd = fmt.Sprintf("%v\n", strings.Trim(re.ReplaceAllString(gd, ""), "\r\n"))
+    gb := []byte(gd)
+    err = ioutil.WriteFile("example-gitlab-ci.yml", gb, 0644)
+    check(err)
+    fmt.Printf("Created: example-gitlab-ci.yml\n")
 }

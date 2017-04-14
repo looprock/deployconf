@@ -1,0 +1,16 @@
+name: foo
+servicetarget: true
+containers:
+- name: ui
+  # serviceport - OPTIONAL: define an alternate port for your service (vs container) to listen on. Default - portnumber
+  serviceport: 80
+  # image - OPTIONAL: will default to alpine if not present
+  # beta should look something like this:
+  # image: docker.company.com/apps/app:ui-canary
+  # production should look something like this:
+  # image: docker.company.com/apps/app:ui-##IMAGE_VERSION##
+  # buildroot - OPTIONAL - if this isn't specified, it will set the build root to the container name
+  # i.e. if you're Dockerfile lives under the root of your git repo dir, you'd specify:
+  buildroot: .
+  portnumber: 5000
+  protocol: TCP
