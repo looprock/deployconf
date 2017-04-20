@@ -15,6 +15,7 @@ import (
 type conf struct {
 	Name string `yaml:"name"`
 	Servicetarget string `yaml:"servicetarget,omitempty"`
+  Localservice string `yaml:"localservice,omitempty"`
 	Hostname string `yaml:"hostname,omitempty"`
   Replicas string `yaml:"replicas,omitempty"`
 	Containers []struct {
@@ -26,6 +27,7 @@ type conf struct {
 			Value string `yaml:"value"`
 		} `yaml:"env,omitempty"`
 		Portnumber int `yaml:"portnumber"`
+    Portname string `yaml:"portname,omitempty"`
     Serviceport string `yaml:"serviceport,omitempty"`
 		Protocol string `yaml:"protocol"`
 		Probes []struct {
@@ -96,9 +98,19 @@ metadata:
   name: {{.Name}}
 spec:
 {{ if .Replicas}}
+  {{if $.Localservice}}
+  # overwriting replicas for localservice
+  replicas: 1
+  {{else}}
   replicas: {{.Replicas}}
+  {{end}}
 {{else}}
+  {{if $.Localservice}}
+  # overwriting replicas for localservice
+  replicas: 1
+  {{else}}
   replicas: 2
+  {{end}}
 {{end}}
   revisionHistoryLimit: 1
   selector:
@@ -137,6 +149,9 @@ spec:
 {{$protocol := .Protocol}}
         imagePullPolicy: Always
 {{if $portnumber}}
+        {{if $.Localservice}}
+        # Omitting livenessProbe for localservice
+        {{else}}
         livenessProbe:
           failureThreshold: 3
           initialDelaySeconds: 30
@@ -145,8 +160,12 @@ spec:
           tcpSocket:
             port: {{$portnumber}}
           timeoutSeconds: 10
+          {{end}}
 {{end}}
 {{if $portnumber}}
+        {{if $.Localservice}}
+        # Omitting readinessProbe for localservice
+        {{else}}
         readinessProbe:
           failureThreshold: 3
           initialDelaySeconds: 30
@@ -155,10 +174,14 @@ spec:
           tcpSocket:
             port: {{$portnumber}}
           timeoutSeconds: 10
+          {{end}}
 {{end}}
 {{if .Probes}}
 {{range .Probes}}
 {{if .Httpcheck}}
+        {{if $.Localservice}}
+        # Omitting http livenessProbe probe for localservice
+        {{else}}
         livenessProbe:
           failureThreshold: 3
           httpGet:
@@ -169,13 +192,16 @@ spec:
           periodSeconds: 30
           successThreshold: 1
           timeoutSeconds: 10
+          {{end}}
 {{end}}
 {{end}}
 {{end}}
         name: {{.Name}}
         ports:
         - containerPort: {{$portnumber}}
-          name: {{.Name}}-{{$portnumber}}
+          {{if .Portname}}
+          name: {{.Portname}}
+          {{end}}
           protocol: {{$protocol}}
         resources: {}
         terminationMessagePath: /dev/termination-log
@@ -198,6 +224,10 @@ metadata:
 spec:
   selector:
     app: {{.Name}}
+  {{if $.Localservice}}
+  # adding nodePort config for Localservice
+  type: NodePort
+  {{end}}
   ports:
 {{if eq "true" .Servicetarget}}
 {{range .Containers}}

@@ -1,5 +1,10 @@
 name: foo
 servicetarget: true
+# localservice - OPTIONAL: if this is defined (any value work) deployconf will change some defaults to be more minkube-friendly via:
+# disabling checks
+# set replicas to 1
+# add type: nodePort to your service configurations
+# localservice: true
 containers:
 - name: ui
   # serviceport - OPTIONAL: define an alternate port for your service (vs container) to listen on. Default - portnumber

@@ -11,6 +11,11 @@ name: foo
 replicas: 3
 # servicetarget - OPTIONAL: container to create a service for
 servicetarget: ui
+# localservice - OPTIONAL: if this is defined (any value work) deployconf will change some defaults to be more minkube-friendly via:
+# disabling checks
+# set replicas to 1
+# add type: nodePort to your service configurations
+# localservice: true
 # containers - MANDATORY: a list of containers to include in each deployment
 containers:
 # name- MANDATORY: unique name of container type
