@@ -11,11 +11,13 @@ containers:
   serviceport: 80
   # image - OPTIONAL: will default to alpine if not present
   # beta should look something like this:
-  # image: docker.company.com/apps/app:ui-canary
+  # image: docker.company.com/application/app:ui-canary
   # production should look something like this:
-  # image: docker.company.com/apps/app:ui-##IMAGE_VERSION##
+  # image: docker.company.com/application/app:ui-##IMAGE_VERSION##
   # buildroot - OPTIONAL - if this isn't specified, it will set the build root to the container name
   # i.e. if you're Dockerfile lives under the root of your git repo dir, you'd specify:
   buildroot: .
   portnumber: 5000
   protocol: TCP
+  # portname - Optional: name the port, and translate to an environment variable
+  # portname: http

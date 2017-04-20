@@ -1,10 +1,3 @@
-# Minimum Viable config:
-# name: foo
-# containers:
-# - name: ui
-#   portnumber: 80
-#   protocol: TCP
-
 # name - MANDATORY: Unique application name
 name: foo
 # replicas - OPTIONAL: number of replicas, defaults to 2
@@ -24,25 +17,28 @@ containers:
   # serviceport: 80
   # image - OPTIONAL: will default to alpine if not present
   # beta should look something like this:
-  # image: docker.company.com/apps/app:api-canary
+  # image: docker.company.com/application/app:api-canary
   # production should look something like this:
-  # image: docker.company.com/apps/app:api-##IMAGE_VERSION##
+  # image: docker.company.com/application/app:api-##IMAGE_VERSION##
   # buildroot - OPTIONAL - if this isn't specified, it will set the build root to the container name
   # i.e. if you're Dockerfile lives under the root of your git repo dir, you'd specify:
   # buildroot: .
   # env - OPTIONAL: no defaults
   env:
     - name: AUTH_ROOT
-      value: https://app.company.com
+      value: https://beta-application.company.com
     - name: FOOBAR
       value: bass
   # portnumber - MANDATORY: port your service listens on
   portnumber: 4000
   # porttype - MANDATORY: protocol of connection (TCP, UDP)
   protocol: TCP
+  # portname - Optional: name the port, and translate to an environment variable
+  portname: api
 - name: ui
   portnumber: 5000
   protocol: TCP
+  portname: http
   # probes - OPTIONAL: enable probe livenessProbe/httpGet against path /
   probes:
     - httpcheck: true
