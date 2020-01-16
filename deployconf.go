@@ -1,38 +1,38 @@
 package main
 
 import (
-    "gopkg.in/yaml.v2"
-    "io/ioutil"
-    "fmt"
-    "text/template"
-    "bytes"
-    "regexp"
-    "strings"
-    "os"
-    "flag"
+	"bytes"
+	"flag"
+	"fmt"
+	"gopkg.in/yaml.v2"
+	"io/ioutil"
+	"os"
+	"regexp"
+	"strings"
+	"text/template"
 )
 
 type conf struct {
-	Name string `yaml:"name"`
+	Name          string `yaml:"name"`
 	Servicetarget string `yaml:"servicetarget,omitempty"`
-  Localservice string `yaml:"localservice,omitempty"`
-	Hostname string `yaml:"hostname,omitempty"`
-  Replicas string `yaml:"replicas,omitempty"`
-	Containers []struct {
-		Name string `yaml:"name"`
-		Image string `yaml:"image,omitempty"`
-    Buildroot string `yaml:"buildroot,omitempty"`
-		Env []struct {
-			Name string `yaml:"name"`
+	Localservice  string `yaml:"localservice,omitempty"`
+	Hostname      string `yaml:"hostname,omitempty"`
+	Replicas      string `yaml:"replicas,omitempty"`
+	Containers    []struct {
+		Name      string `yaml:"name"`
+		Image     string `yaml:"image,omitempty"`
+		Buildroot string `yaml:"buildroot,omitempty"`
+		Env       []struct {
+			Name  string `yaml:"name"`
 			Value string `yaml:"value"`
 		} `yaml:"env,omitempty"`
-		Portnumber int `yaml:"portnumber"`
-    Portname string `yaml:"portname,omitempty"`
-    Serviceport string `yaml:"serviceport,omitempty"`
-		Protocol string `yaml:"protocol"`
-		Probes []struct {
-			Tcpready bool `yaml:"tcpready,omitempty"`
-			Tcplive bool `yaml:"tcplive,omitempty"`
+		Portnumber  int    `yaml:"portnumber"`
+		Portname    string `yaml:"portname,omitempty"`
+		Serviceport string `yaml:"serviceport,omitempty"`
+		Protocol    string `yaml:"protocol"`
+		Probes      []struct {
+			Tcpready  bool `yaml:"tcpready,omitempty"`
+			Tcplive   bool `yaml:"tcplive,omitempty"`
 			Httpcheck bool `yaml:"httpcheck,omitempty"`
 		} `yaml:"probes,omitempty"`
 	} `yaml:"containers"`
@@ -71,8 +71,6 @@ spec:
     type: RollingUpdate
   template:
     metadata:
-      annotations:
-        ci.company.com/build-number: ##CI_BUILD_NUMBER##
       creationTimestamp: null
       labels:
         app: {{.Name}}
@@ -151,7 +149,13 @@ spec:
           name: {{.Portname}}
           {{end}}
           protocol: {{$protocol}}
-        resources: {}
+        resources:
+        limits:
+          cpu: 512m
+          memory: 1024Mi
+        requests:
+          cpu: 200m
+          memory: 256Mi
         terminationMessagePath: /dev/termination-log
 {{end}}
       dnsPolicy: ClusterFirst
@@ -205,67 +209,73 @@ spec:
 {{end}}`
 
 func check(e error) {
-    if e != nil {
-        panic(e)
-    }
+	if e != nil {
+		panic(e)
+	}
 }
 
 func (c *conf) getConf(conffile string) *conf {
-    yamlFile, err := ioutil.ReadFile(conffile)
-    check(err)
-    err = yaml.Unmarshal(yamlFile, c)
-    check(err)
-    return c
+	yamlFile, err := ioutil.ReadFile(conffile)
+	check(err)
+	err = yaml.Unmarshal(yamlFile, c)
+	check(err)
+	return c
 }
 
 func main() {
-    config := flag.String("config", "unset", "YAML configuration")
-    environment := flag.String("environment", "unset", "YAML configuration")
-    flag.Parse()
+	var config string
+	var environment string
+	configDefault := "unset"
+	configUsage := "YAML configuration file"
+	environmentUsage := "Environment to configure"
+	flag.StringVar(&config, "config", configDefault, configUsage)
+	flag.StringVar(&config, "c", configDefault, configUsage+" (shorthand)")
+	flag.StringVar(&environment, "environment", configDefault, environmentUsage)
+	flag.StringVar(&environment, "e", configDefault, environmentUsage+" (shorthand)")
+	flag.Parse()
 
-    if *config == "unset" {
-      fmt.Printf("ERROR: please specify a config file to parse via '-config=' \n")
-      os.Exit(1)
-    }
+	if config == "unset" {
+		fmt.Printf("ERROR: please specify a config file to parse via '-config=' \n")
+		os.Exit(1)
+	}
 
-    if *environment == "unset" {
-      fmt.Printf("ERROR: please specify an environment\n")
-      os.Exit(1)
-    }
+	if environment == "unset" {
+		fmt.Printf("ERROR: please specify an environment\n")
+		os.Exit(1)
+	}
 
-    var c conf
-    c.getConf(*config)
+	var c conf
+	c.getConf(config)
 
-    os.Mkdir(*environment, 0755)
+	os.Mkdir(environment, 0755)
 
+	var doc bytes.Buffer
+	re := regexp.MustCompile("(?m)^\\s*$[\r\n]*")
 
-    var doc bytes.Buffer
-    re := regexp.MustCompile("(?m)^\\s*$[\r\n]*")
+	// process deployment
+	tmpl, err := template.New("deployment").Parse(deploy)
+	check(err)
+	tmpl.Execute(&doc, c)
+	s := doc.String()
+	s = fmt.Sprintf("%v\n", strings.Trim(re.ReplaceAllString(s, ""), "\r\n"))
+	b := []byte(s)
+	err = ioutil.WriteFile(environment+"/02-deployment.yaml", b, 0644)
+	check(err)
+	fmt.Printf("Created: " + environment + "/02-deployment.yaml\n")
 
-    // process deployment
-    tmpl, err := template.New("deployment").Parse(deploy)
-    check(err)
-    tmpl.Execute(&doc, c)
-    s := doc.String()
-    s = fmt.Sprintf("%v\n", strings.Trim(re.ReplaceAllString(s, ""), "\r\n"))
-    b := []byte(s)
-    err = ioutil.WriteFile(*environment + "/deployment.yaml", b, 0644)
-    check(err)
-    fmt.Printf("Created: " + *environment + "/deployment.yaml\n")
-
-    if c.Servicetarget != "" {
-      // process service
-      var sdoc bytes.Buffer
-      // stmpl, err := template.ParseFiles("test.tmpl")
-      stmpl, err := template.New("service").Parse(service)
-      check(err)
-      stmpl.Execute(&sdoc, c)
-      ss := sdoc.String()
-      ss = fmt.Sprintf("%v\n", strings.Trim(re.ReplaceAllString(ss, ""), "\r\n"))
-      sb := []byte(ss)
-      err = ioutil.WriteFile(*environment + "/service.yaml", sb, 0644)
-      // fmt.Printf(ss)
-      check(err)
-      fmt.Printf("Created: " + *environment + "/service.yaml\n")
-    }
+	if c.Servicetarget != "" {
+		// process service
+		var sdoc bytes.Buffer
+		// stmpl, err := template.ParseFiles("test.tmpl")
+		stmpl, err := template.New("service").Parse(service)
+		check(err)
+		stmpl.Execute(&sdoc, c)
+		ss := sdoc.String()
+		ss = fmt.Sprintf("%v\n", strings.Trim(re.ReplaceAllString(ss, ""), "\r\n"))
+		sb := []byte(ss)
+		err = ioutil.WriteFile(environment+"/01-service.yaml", sb, 0644)
+		// fmt.Printf(ss)
+		check(err)
+		fmt.Printf("Created: " + environment + "/01-service.yaml\n")
+	}
 }
