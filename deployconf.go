@@ -248,6 +248,7 @@ func main() {
 	c.getConf(config)
 
 	os.Mkdir(environment, 0755)
+	os.Mkdir(environment+"/configs", 0755)
 
 	var doc bytes.Buffer
 	re := regexp.MustCompile("(?m)^\\s*$[\r\n]*")
@@ -259,9 +260,9 @@ func main() {
 	s := doc.String()
 	s = fmt.Sprintf("%v\n", strings.Trim(re.ReplaceAllString(s, ""), "\r\n"))
 	b := []byte(s)
-	err = ioutil.WriteFile(environment+"/02-deployment.yaml", b, 0644)
+	err = ioutil.WriteFile(environment+"/configs/02-deployment.yaml", b, 0644)
 	check(err)
-	fmt.Printf("Created: " + environment + "/02-deployment.yaml\n")
+	fmt.Printf("Created: " + environment + "/configs/02-deployment.yaml\n")
 
 	if c.Servicetarget != "" {
 		// process service
@@ -273,9 +274,9 @@ func main() {
 		ss := sdoc.String()
 		ss = fmt.Sprintf("%v\n", strings.Trim(re.ReplaceAllString(ss, ""), "\r\n"))
 		sb := []byte(ss)
-		err = ioutil.WriteFile(environment+"/01-service.yaml", sb, 0644)
+		err = ioutil.WriteFile(environment+"/configs/01-service.yaml", sb, 0644)
 		// fmt.Printf(ss)
 		check(err)
-		fmt.Printf("Created: " + environment + "/01-service.yaml\n")
+		fmt.Printf("Created: " + environment + "/configs/01-service.yaml\n")
 	}
 }
