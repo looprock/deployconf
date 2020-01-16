@@ -150,12 +150,12 @@ spec:
           {{end}}
           protocol: {{$protocol}}
         resources:
-        limits:
-          cpu: 512m
-          memory: 1024Mi
-        requests:
-          cpu: 200m
-          memory: 256Mi
+          limits:
+            cpu: 512m
+            memory: 1024Mi
+          requests:
+            cpu: 200m
+            memory: 256Mi
         terminationMessagePath: /dev/termination-log
 {{end}}
       dnsPolicy: ClusterFirst
