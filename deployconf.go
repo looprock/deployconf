@@ -219,7 +219,6 @@ func (c *conf) getConf(conffile string) *conf {
 }
 
 func main() {
-
     config := flag.String("config", "unset", "YAML configuration")
     environment := flag.String("environment", "unset", "YAML configuration")
     flag.Parse()
