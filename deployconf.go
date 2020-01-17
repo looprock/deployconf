@@ -82,7 +82,7 @@ spec:
       - env:
 {{range .Env}}
         - name: {{.Name}}
-          value: {{.Value}}
+          value: "{{.Value}}"
 {{end}}
 {{end}}
 {{if .Image}}
